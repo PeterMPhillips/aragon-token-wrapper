@@ -1,1 +1,0 @@
-{"name":"Token Locker","description":"Controls an organization token allowing to mint new tokens, assign them and create vestings","icons":[{"src":"/dist/icon.svg","sizes":"192x192"}],"start_url":"index.html","script":"script.js"}

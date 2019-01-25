@@ -10,8 +10,6 @@ class ConnectedApp extends React.Component {
     userAccount: '',
   }
   componentDidMount() {
-    window.addEventListener('message', this.handleWrapperMessage)
-
     // If using Parcel, reload instead of using HMR.
     // HMR makes the app disconnect from the wrapper and the state is empty until a reload
     // See: https://github.com/parcel-bundler/parcel/issues/289
@@ -20,26 +18,28 @@ class ConnectedApp extends React.Component {
         window.location.reload();
       })
     }
+
+    window.addEventListener('message', this.handleWrapperMessage)
   }
   componentWillUnmount() {
     window.removeEventListener('message', this.handleWrapperMessage)
   }
-  // handshake between Aragon Core and the iframe,
-  // since iframes can lose messages that were sent before they were ready
   handleWrapperMessage = ({ data }) => {
     if (data.from !== 'wrapper') {
       return
     }
     if (data.name === 'ready') {
       const { app } = this.state
+      console.log('Ready')
+      console.log(app)
+      console.log(app.state())
       this.sendMessageToWrapper('ready', true)
-      this.setState({
-        observable: app.state(),
+      this.setState({ observable: app.state() })
+      app.accounts().subscribe(([userAccount]) => {
+        this.setState({ userAccount })
       })
-      app.accounts().subscribe(accounts => {
-        this.setState({
-          userAccount: accounts[0],
-        })
+      app.network().subscribe(network => {
+        this.setState({ network })
       })
     }
   }
@@ -47,10 +47,10 @@ class ConnectedApp extends React.Component {
     window.parent.postMessage({ from: 'app', name, value }, '*')
   }
   render() {
-    return <App {...this.state} />
+    return (
+      <App {...this.state} sendMessageToWrapper={this.sendMessageToWrapper} />
+    )
   }
 }
-ReactDOM.render(
-  <ConnectedApp />,
-  document.getElementById('root')
-)
+
+ReactDOM.render(<ConnectedApp />, document.getElementById('root'))

@@ -105,8 +105,7 @@ class App extends React.Component {
     }
   }
   render() {
-    //console.log(this.props)
-    let apps = this.props.app;
+    console.log(this.props)
     const {
       appStateReady,
       erc20Address,
@@ -223,6 +222,8 @@ export default observe(
   // and calculate tokenDecimalsBase.
   observable =>
     observable.map(state => {
+      console.log('State')
+      console.log(state)
       const appStateReady = hasLoadedTokenSettings(state)
       if (!appStateReady) {
         return {
@@ -230,8 +231,7 @@ export default observe(
           appStateReady,
         }
       }
-      console.log('State');
-      console.log(state);
+
       const {
         erc20,
         erc20Symbol,

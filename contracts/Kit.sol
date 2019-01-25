@@ -76,7 +76,7 @@ contract Kit is KitBase {
         Voting voting = Voting(dao.newAppInstance(votingAppId, latestVersionAppBase(votingAppId)));
         TokenLocker tokenLocker = TokenLocker(dao.newAppInstance(tokenLockerAppId, latestVersionAppBase(tokenLockerAppId)));
 
-        MiniMeToken token = tokenFactory.createCloneToken(MiniMeToken(0), 0, "MyVote", 0, "MYV", true);
+        MiniMeToken token = tokenFactory.createCloneToken(MiniMeToken(0), 0, "MADLAF", 0, "MAPP", true);
         token.changeController(tokenLocker);
 
         StandardToken erc20 = new StandardToken(tokenName, tokenSym, tokenDecimals, tokenSupply);
@@ -87,11 +87,11 @@ contract Kit is KitBase {
         voting.initialize(token, 50 * PCT, 20 * PCT, 1 days);
 
         acl.createPermission(this, tokenLocker, tokenLocker.MINT_ROLE(), this);
-        //tokenLocker.mint(root, 1); // Give one token to root
+        tokenLocker.mint(root, 1); // Give one token to root
 
         acl.createPermission(ANY_ENTITY, voting, voting.CREATE_VOTES_ROLE(), root);
 
-        //acl.grantPermission(voting, tokenLocker, tokenLocker.MINT_ROLE());
+        acl.grantPermission(voting, tokenLocker, tokenLocker.MINT_ROLE());
 
         // Clean up permissions
         acl.grantPermission(root, dao, dao.APP_MANAGER_ROLE());

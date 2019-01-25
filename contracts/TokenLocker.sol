@@ -104,7 +104,7 @@ contract TokenLocker is ITokenController, IForwarder, AragonApp {
     function mint(address _receiver, uint256 _amount) external {
         require(_amount == maxAccountTokens); //For compatibility we kept the _amount parameter, but only accept a value of 1
         require(_isBalanceIncreaseAllowed(_receiver, _amount), ERROR_MINT_BALANCE_INCREASE_NOT_ALLOWED);
-        require(erc20.transferFrom(_receiver, address(this), lockAmount));
+        //require(erc20.transferFrom(_receiver, address(this), lockAmount));
         _mint(_receiver, _amount);
     }
 

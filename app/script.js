@@ -7,7 +7,7 @@ import erc20Abi from './src/abi/standardToken.json'
 
 const INITIALIZATION_TRIGGER = Symbol('INITIALIZATION_TRIGGER')
 
-const app = new Aragon()
+const app = new Aragon();
 
 /*
  * Calls `callback` exponentially, everytime `retry()` is called.
@@ -54,9 +54,10 @@ retryEvery(retry => {
 async function initialize(tokenAddr) {
   console.log('Initialize');
   const token = app.external(tokenAddr, tokenAbi)
+  console.log(token)
   try {
     const tokenSymbol = await loadTokenSymbol(token)
-    app.identify(tokenSymbol)
+    app.identify(tokenSymbol);
   } catch (err) {
     console.error(
       `Failed to load token symbol for token at ${tokenAddr} due to:`,
@@ -69,11 +70,8 @@ async function initialize(tokenAddr) {
 
 // Hook up the script as an aragon.js store
 async function createStore(token, tokenAddr) {
-  console.log('Create Store');
-  console.log(app);
   return app.store(
     async (state, { address, event, returnValues }) => {
-      console.log(...state);
       let nextState = {
         ...state,
         // Fetch the app's settings, if we haven't already
@@ -110,7 +108,8 @@ async function createStore(token, tokenAddr) {
       } else {
         // TODO: add handlers for the vesting events from token Manager
       }
-
+      console.log('Next State')
+      console.log(nextState)
       return nextState
     },
     [
