@@ -19,9 +19,10 @@ import Holders from './screens/Holders'
 import LockTokensPanelContent from './components/Panels/LockTokensPanelContent'
 import MenuButton from './components/MenuButton/MenuButton'
 import { networkContextType } from './provide-network'
-import { hasLoadedTokenSettings } from './token-settings'
+import { erc20Settings, hasLoadedERC20Settings, hasLoadedTokenSettings } from './token-settings'
 import { makeEtherscanBaseUrl } from './utils'
 import { addressesEqual } from './web3-utils'
+import erc20Abi from './abi/standardToken.json'
 
 
 const initialLockTokensConfig = {
@@ -36,6 +37,8 @@ class App extends React.Component {
   }
   static defaultProps = {
     appStateReady: false,
+    erc20Processing: false,
+    erc20Loaded: false,
     holders: [],
     network: {},
     userAccount: '',
@@ -45,6 +48,49 @@ class App extends React.Component {
     lockTokensConfig: initialLockTokensConfig,
     sidepanelOpened: false,
   }
+
+  async componentWillReceiveProps({ app, erc20Address }) {
+    if(!this.state.erc20Processing && erc20Address){
+      this.setState({ erc20Processing:true})
+      let erc20 = app.external(erc20Address, erc20Abi)
+      let tempData = await this.loadERC20Settings(erc20)
+      let erc20DecimalsBase = new BN(10).pow(new BN(tempData.erc20Decimals))
+      let erc20Data = {
+        ...tempData,
+        erc20DecimalsBase,
+        erc20Decimals: new BN(tempData.erc20Decimals),
+        erc20Supply: new BN(tempData.erc20Supply)
+      }
+      this.setState({
+        ...this.state,
+        ...erc20Data
+      })
+      this.setState({ erc20Loaded:true})
+    }
+  }
+  loadERC20Settings(token) {
+    return Promise.all(
+      erc20Settings.map(
+        ([name, key, type = 'string']) =>
+          new Promise((resolve, reject) =>
+            token[name]()
+              .first()
+              .subscribe(value => {
+                resolve({ [key]: value })
+              }, reject)
+          )
+      )
+    )
+      .then(settings =>
+        settings.reduce((acc, setting) => ({ ...acc, ...setting }), {})
+      )
+      .catch(err => {
+        console.error("Failed to load token's settings", err)
+        // Return an empty object to try again later
+        return {}
+      })
+  }
+
   static childContextTypes = {
     network: networkContextType,
   }
@@ -67,7 +113,6 @@ class App extends React.Component {
   }
   handleUpdateTokens = ({ holder, mode }) => {
     const { app } = this.props
-    console.log(app);
 
     if (mode === 'assign') {
       app.mint(holder, '1')
@@ -105,12 +150,9 @@ class App extends React.Component {
     }
   }
   render() {
-    console.log(this.props)
     const {
       appStateReady,
       erc20Address,
-      erc20DecimalsBase,
-      erc20Symbol,
       groupMode,
       holders,
       lockAmount,
@@ -124,7 +166,14 @@ class App extends React.Component {
       tokenTransfersEnabled,
       userAccount,
     } = this.props
-    const { lockTokensConfig, sidepanelOpened } = this.state
+    const {
+      erc20Loaded,
+      lockTokensConfig,
+      sidepanelOpened,
+      erc20DecimalsBase,
+      erc20Symbol,
+    } = this.state
+    console.log(erc20Address);
     return (
       <PublicUrl.Provider url="./aragon-ui/">
         <BaseStyles />
@@ -181,7 +230,7 @@ class App extends React.Component {
             onClose={this.handleSidepanelClose}
             onTransitionEnd={this.handleSidepanelTransitionEnd}
           >
-            {appStateReady && (
+            {appStateReady && erc20Loaded && (
               <LockTokensPanelContent
                 opened={sidepanelOpened}
                 tokenDecimals={numData.tokenDecimals}
@@ -222,8 +271,6 @@ export default observe(
   // and calculate tokenDecimalsBase.
   observable =>
     observable.map(state => {
-      console.log('State')
-      console.log(state)
       const appStateReady = hasLoadedTokenSettings(state)
       if (!appStateReady) {
         return {
@@ -233,9 +280,6 @@ export default observe(
       }
 
       const {
-        erc20,
-        erc20Symbol,
-        erc20Decimals,
         holders,
         lockAmount,
         maxAccountTokens,
@@ -244,7 +288,6 @@ export default observe(
         tokenTransfersEnabled,
       } = state
       const tokenDecimalsBase = new BN(10).pow(new BN(tokenDecimals))
-      const erc20DecimalsBase = new BN(10).pow(new BN(erc20Decimals))
       return {
         ...state,
         appStateReady,
@@ -260,7 +303,6 @@ export default observe(
               .map(holder => ({ ...holder, balance: new BN(holder.balance) }))
               .sort((a, b) => b.balance.cmp(a.balance))
           : [],
-        erc20DecimalsBase,
         tokenDecimals: new BN(tokenDecimals),
         tokenSupply: new BN(tokenSupply),
         maxAccountTokens: new BN(maxAccountTokens),

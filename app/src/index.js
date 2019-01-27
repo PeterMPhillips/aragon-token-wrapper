@@ -10,15 +10,6 @@ class ConnectedApp extends React.Component {
     userAccount: '',
   }
   componentDidMount() {
-    // If using Parcel, reload instead of using HMR.
-    // HMR makes the app disconnect from the wrapper and the state is empty until a reload
-    // See: https://github.com/parcel-bundler/parcel/issues/289
-    if (module.hot) {
-      module.hot.dispose(() => {
-        window.location.reload();
-      })
-    }
-
     window.addEventListener('message', this.handleWrapperMessage)
   }
   componentWillUnmount() {
@@ -30,9 +21,6 @@ class ConnectedApp extends React.Component {
     }
     if (data.name === 'ready') {
       const { app } = this.state
-      console.log('Ready')
-      console.log(app)
-      console.log(app.state())
       this.sendMessageToWrapper('ready', true)
       this.setState({ observable: app.state() })
       app.accounts().subscribe(([userAccount]) => {
