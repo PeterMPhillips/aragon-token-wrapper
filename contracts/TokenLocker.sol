@@ -21,66 +21,39 @@ contract TokenLocker is ITokenController, IForwarder, AragonApp {
     using SafeMath for uint256;
     using Uint256Helpers for uint256;
 
-    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
-    //bytes32 public constant ISSUE_ROLE = keccak256("ISSUE_ROLE");
-    //bytes32 public constant ASSIGN_ROLE = keccak256("ASSIGN_ROLE");
-    //bytes32 public constant REVOKE_VESTINGS_ROLE = keccak256("REVOKE_VESTINGS_ROLE");
-    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant LOCK_ROLE = keccak256("LOCK_ROLE");
+    bytes32 public constant UNLOCK_ROLE = keccak256("UNLOCK_ROLE");
 
-    //uint256 public constant MAX_VESTINGS_PER_ADDRESS = 50;
-
-    string private constant ERROR_NO_VESTING = "TM_NO_VESTING";
     string private constant ERROR_TOKEN_CONTROLLER = "TM_TOKEN_CONTROLLER";
     string private constant ERROR_MINT_BALANCE_INCREASE_NOT_ALLOWED = "TM_MINT_BAL_INC_NOT_ALLOWED";
-    string private constant ERROR_ASSIGN_BALANCE_INCREASE_NOT_ALLOWED = "TM_ASSIGN_BAL_INC_NOT_ALLOWED";
-    string private constant ERROR_TOO_MANY_VESTINGS = "TM_TOO_MANY_VESTINGS";
-    string private constant ERROR_WRONG_CLIFF_DATE = "TM_WRONG_CLIFF_DATE";
-    string private constant ERROR_VESTING_NOT_REVOKABLE = "TM_VESTING_NOT_REVOKABLE";
-    string private constant ERROR_REVOKE_TRANSFER_FROM_REVERTED = "TM_REVOKE_TRANSFER_FROM_REVERTED";
-    string private constant ERROR_ASSIGN_TRANSFER_FROM_REVERTED = "TM_ASSIGN_TRANSFER_FROM_REVERTED";
     string private constant ERROR_CAN_NOT_FORWARD = "TM_CAN_NOT_FORWARD";
-    string private constant ERROR_ON_TRANSFER_WRONG_SENDER = "TM_TRANSFER_WRONG_SENDER";
     string private constant ERROR_PROXY_PAYMENT_WRONG_SENDER = "TM_PROXY_PAYMENT_WRONG_SENDER";
-    /*
-    struct TokenVesting {
-        uint256 amount;
-        uint64 start;
-        uint64 cliff;
-        uint64 vesting;
-        bool revokable;
-    }
-    */
+
+    uint256 private constant MONTH = 2592000; //30 days in seconds
 
     MiniMeToken public token;
     ERC20 public erc20;
     uint256 public lockAmount;
     uint256 public maxAccountTokens;
-
-    /*
-    // We are mimicing an array in the inner mapping, we use a mapping instead to make app upgrade more graceful
-    mapping (address => mapping (uint256 => TokenVesting)) internal vestings;
-    mapping (address => uint256) public vestingsLengths;
-    mapping (address => bool) public everHeld;
-
-    // Other token specific events can be watched on the token address directly (avoids duplication)
-
-    event NewVesting(address indexed receiver, uint256 vestingId, uint256 amount);
-    event RevokeVesting(address indexed receiver, uint256 vestingId, uint256 nonVestedAmount);
-
-    modifier vestingExists(address _holder, uint256 _vestingId) {
-        // TODO: it's not checking for gaps that may appear because of deletes in revokeVesting function
-        require(_vestingId < vestingsLengths[_holder], ERROR_NO_VESTING);
-        _;
-    }
-    */
+    mapping(address => uint256) public lockStart;
+    mapping(address => uint256) public lockExpiry;
+    uint256[] public lockIntervals;
+    uint256[] public tokenIntervals;
 
     /**
     * @notice Initialize Token Manager for `_token.symbol(): string`, whose tokens are `transferable ? 'not' : ''` transferable`_maxAccountTokens > 0 ? ' and limited to a maximum of ' + @tokenAmount(_token, _maxAccountTokens, false) + ' per account' : ''`
+    * @param _token The MiniMetoken that is used for voting in the DAO
+    * @param _erc20 The ERC20 token that is locked in order to receive voting tokens
+    * @param _lockAmount The amount of ERC20 that is required to receive voting tokens
+    * @param _lockIntervals An array of lock times (in months)
+    * @param _tokenIntervals An array of token amounts given for locking ERC20s for the amount of time defined by _lockIntervals
     */
     function initialize(
         MiniMeToken _token,
         address _erc20,
-        uint256 _lockAmount
+        uint256 _lockAmount,
+        uint256[] _lockIntervals,
+        uint256[] _tokenIntervals
     )
         external
 
@@ -90,35 +63,87 @@ contract TokenLocker is ITokenController, IForwarder, AragonApp {
         require(MiniMeToken(_token).controller() == address(this), ERROR_TOKEN_CONTROLLER);
 
         token = _token;
+        token.enableTransfers(false);
         erc20 = ERC20(_erc20);
         lockAmount = _lockAmount;
-        maxAccountTokens = uint256(1);
-        token.enableTransfers(false);
+        lockIntervals = _lockIntervals;
+        tokenIntervals = _tokenIntervals;
     }
 
     /**
-    * @notice Mint `@tokenAmount(self.token(): address, _amount, false)` tokens for `_receiver`
-    * @param _receiver The address receiving the tokens
-    * @param _amount Number of tokens minted
+    * @notice lock
     */
-    function mint(address _receiver, uint256 _amount) external {
-        require(_amount == maxAccountTokens); //For compatibility we kept the _amount parameter, but only accept a value of 1
-        require(_isBalanceIncreaseAllowed(_receiver, _amount), ERROR_MINT_BALANCE_INCREASE_NOT_ALLOWED);
-        require(erc20.transferFrom(_receiver, address(this), lockAmount));
-        _mint(_receiver, _amount);
+    function lock(uint256 _lockTime) external {
+      uint amount;
+      uint expiry;
+      if(token.balanceOf(msg.sender) == 0){
+        require(erc20.transferFrom(msg.sender, address(this), lockAmount), 'Transfer from msg sender failed');
+        lockStart[msg.sender] = now;
+        (amount, expiry) = _calcLockingValues(_lockTime);
+        require(expiry > 0);
+        lockExpiry[msg.sender] = lockStart[msg.sender] + expiry;
+      } else {
+        //In this case we are updating the lock times and the user's voting tokens
+        //Maximise expiry time to give user the max tokens they are entitled to
+        expiry = _lockTime;
+        if(expiry < lockExpiry[msg.sender]-lockStart[msg.sender]){
+          expiry = lockExpiry[msg.sender]-lockStart[msg.sender];
+        }
+        if(expiry < now-lockStart[msg.sender]){
+          expiry = now-lockStart[msg.sender];
+        }
+        //Get amount owed. _updateLockExpiry will subtract any voting tokens already minted
+        amount = _updateLockExpiry(msg.sender, expiry);
+      }
+      require(amount > 0);
+      token.generateTokens(msg.sender, amount); // minime.generateTokens() never returns false
     }
 
     /**
-    * @notice Burn `@tokenAmount(self.token(): address, _amount, false)` tokens from `_holder`
-    * @param _holder Holder of tokens being burned
-    * @param _amount Number of tokens being burned
+    * @notice unlock
     */
-    function burn(address _holder, uint256 _amount) external {
-        // minime.destroyTokens() never returns false, only reverts on failure
-        require(_amount == 1);//For compatibility we kept the _amount parameter, but only accept a value of 1
-        require(token.balanceOf(_holder) == _amount);
-        token.destroyTokens(_holder, _amount);
-        erc20.transfer(_holder, lockAmount);
+    function unlock() external {
+      require(lockExpiry[msg.sender] < now, 'Tokens are still locked');
+      token.destroyTokens(msg.sender, token.balanceOf(msg.sender));
+      delete lockStart[msg.sender];
+      delete lockExpiry[msg.sender];
+      erc20.transfer(msg.sender, lockAmount);
+    }
+
+    function getLockIntervals() external view returns (uint256[]){
+      return lockIntervals;
+    }
+
+    function getTokenIntervals() external view returns (uint256[]){
+      return tokenIntervals;
+    }
+
+    /**
+    *
+    *
+    */
+    function _updateLockExpiry(address _user, uint256 _time)
+    internal
+    returns (uint256){
+      require(lockStart[_user] > 0);
+      (uint amount, uint lockInterval) = _calcLockingValues(_time);
+      lockExpiry[msg.sender] = lockStart[msg.sender] + lockInterval;
+      return amount.sub(token.balanceOf(_user));
+    }
+
+    /**
+    *
+    *
+    */
+    function _calcLockingValues(uint256 _lockTime)
+    internal
+    returns (uint256, uint256){
+      //Reverse loop
+      for(uint i=lockIntervals.length-1; i>=0; i--){
+        if(_lockTime >= lockIntervals[i]){
+          return(tokenIntervals[i], lockIntervals[i].mul(MONTH));
+        }
+      }
     }
 
     /**
@@ -154,15 +179,7 @@ contract TokenLocker is ITokenController, IForwarder, AragonApp {
     * @return False if the controller does not authorize the transfer
     */
     function onTransfer(address _from, address _to, uint _amount) public isInitialized returns (bool) {
-        require(msg.sender == address(token), ERROR_ON_TRANSFER_WRONG_SENDER);
-
-        bool includesTokenManager = _from == address(this) || _to == address(this);
-
-        if (!includesTokenManager || (_amount + token.balanceOf(_to)) > maxAccountTokens) {
-            return false;
-        }
-
-        return true;
+        return false;
     }
 
     /**
@@ -185,21 +202,11 @@ contract TokenLocker is ITokenController, IForwarder, AragonApp {
         return true;
     }
 
-    function _isBalanceIncreaseAllowed(address _receiver, uint _inc) internal view returns (bool) {
-        return (token.balanceOf(_receiver) + _inc) <= maxAccountTokens;
-    }
-
-
     /**
     * @dev Disable recovery escape hatch for own token,
     *      as the it has the concept of issuing tokens without assigning them
     */
     function allowRecoverability(address _token) public view returns (bool) {
         return _token != address(token);
-    }
-
-
-    function _mint(address _receiver, uint256 _amount) internal {
-        token.generateTokens(_receiver, _amount); // minime.generateTokens() never returns false
     }
 }

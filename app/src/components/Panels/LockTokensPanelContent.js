@@ -1,6 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
-import { Button, Field, IconCross, Text, TextInput, Info } from '@aragon/ui'
+import { Button, RadioList, Field, IconCross, Text, TextInput, Info } from '@aragon/ui'
 import { isAddress } from '../../web3-utils'
 import { fromDecimals, toDecimals, formatBalance } from '../../utils'
 
@@ -8,21 +8,16 @@ import { fromDecimals, toDecimals, formatBalance } from '../../utils'
 const MAX_INPUT_DECIMAL_BASE = 6
 
 const initialState = {
-  mode: 'assign',
-  holderField: {
-    error: null,
-    warning: null,
-    value: '',
-  },
-  amountField: {
-    error: null,
-    warning: null,
-    value: '1',
-  },
-  lockField: {
-    symbol: 'ERC-20',
-    value: '1',
-  }
+  mode: 'lock',
+  selected: 0,
+  items: [],
+  erc20Symbol: 'ERC-20',
+  tokenSymbol: 'Voting Tokens',
+  holderBalance: 0,
+  lockAmount: 0,
+  actionAmount: 0,
+  error: null,
+  warning: null,
 }
 
 class LockTokensPanelContent extends React.Component {
@@ -36,9 +31,9 @@ class LockTokensPanelContent extends React.Component {
     if (opened && !this.props.opened) {
       // setTimeout is needed as a small hack to wait until the input is
       // on-screen before we call focus
-      this.holderInput && setTimeout(() => this.holderInput.focus(), 0)
+      //this.holderInput && setTimeout(() => this.holderInput.focus(), 0)
 
-      // Upadte holder address from the props
+      // Update holder address from the props
       this.updateHolderAddress(mode, holderAddress)
     }
 
@@ -47,128 +42,94 @@ class LockTokensPanelContent extends React.Component {
       this.setState({ ...initialState })
     }
   }
-  filteredHolderAddress() {
-    const { holderField } = this.state
-    return holderField.value.trim()
-  }
-  filteredAmount() {
-    const { tokenDecimals } = this.props
-    const { amountField } = this.state
-    return toDecimals(amountField.value.trim(), tokenDecimals)
-  }
   updateHolderAddress(mode, value) {
     const {
-      erc20Address,
-      erc20DecimalsBase,
+      tokenSymbol,
       erc20Symbol,
+      erc20DecimalsBase,
       getHolderBalance,
       lockAmount,
-      maxAccountTokens,
-      tokenDecimalsBase,
-      tokenDecimals,
+      lockIntervals,
+      tokenIntervals
     } = this.props
 
     const holderBalance = getHolderBalance(value.trim())
-    const maxAmount =
-      mode === 'assign' ? maxAccountTokens.sub(holderBalance) : holderBalance
-    this.setState(({ holderField, amountField, lockField }) => ({
-      holderField: { ...holderField, value, error: null },
-      amountField: {
-        ...amountField,
-        value: formatBalance(maxAmount, tokenDecimalsBase, tokenDecimals),
-        warning:
-          maxAmount.isZero() &&
-          (mode === 'assign'
-            ? `
-              The maximum amount of tokens that can be assigned has already been
-              reached.
-            `
-            : `
-              This account doesn’t have any tokens to remove.
-            `),
-      },
-      lockField: {
-        symbol: erc20Symbol,
-        value: (maxAmount.isZero() ? '0' : formatBalance(lockAmount, erc20DecimalsBase) )
+    let items = [];
+    if(mode === 'lock'){
+      let amount;
+      for(var i=0; i<lockIntervals.length; i++){
+        amount = tokenIntervals[i] - holderBalance;
+        items.push({
+          title: `Lock for ${lockIntervals[i]} months`,
+          description: `Lock ${formatBalance(lockAmount, erc20DecimalsBase)} ${erc20Symbol} for ${lockIntervals[i]} months, receive ${amount < 0 ? 0 : amount} ${tokenSymbol}.`
+        })
       }
-    }))
+    }
+    this.setState({
+      items: items,
+      erc20Symbol: erc20Symbol,
+      tokenSymbol: tokenSymbol,
+      holderBalance: holderBalance,
+      lockAmount: lockAmount
+    })
   }
-  handleHolderChange = event => {
-    this.updateHolderAddress(this.props.mode, event.target.value)
+  handleChange = index => {
+    console.log(`Selected radio at index: ${index}`)
+    const { tokenIntervals } = this.props
+    const { holderBalance } = this.state
+    let amount = tokenIntervals[index] - holderBalance;
+    console.log(tokenIntervals[index])
+    console.log(amount)
+    if (amount < 0) amount = 0
+
+    this.setState({
+      selected: index,
+      actionAmount: amount
+    })
   }
   handleSubmit = event => {
     event.preventDefault()
-    const { mode } = this.props
-    const holderAddress = this.filteredHolderAddress()
+    const { mode, lockIntervals } = this.props
+    const { selected } = this.state
 
-    const holderError =
-      !isAddress(holderAddress) &&
-      `
-        ${mode === 'assign' ? 'Recipient' : 'Account'}
-        must be a valid Ethereum address.
-      `
-
-    if (isAddress(holderAddress)) {
-      this.props.onUpdateTokens({
-        mode,
-        holder: holderAddress,
-      })
-    } else {
-      this.setState(({ holderField }) => ({
-        holderField: {
-          ...holderField,
-          error: holderError,
-        },
-      }))
-    }
+    this.props.onUpdateTokens({
+      mode,
+      time: lockIntervals[selected],
+    })
   }
   render() {
-    const { holderField, amountField, lockField } = this.state
-    const { mode, tokenDecimals } = this.props
+    const { items, selected, erc20Symbol, tokenSymbol, holderBalance, lockAmount, actionAmount, error, warning } = this.state
+    const { mode, erc20DecimalsBase } = this.props
 
-    const minTokenStep = fromDecimals(
-      '1',
-      Math.min(MAX_INPUT_DECIMAL_BASE, tokenDecimals)
-    )
-
-    const errorMessage = holderField.error || amountField.error
-    const warningMessage = holderField.warning || amountField.warning
+    const errorMessage = error
+    const warningMessage = warning
 
     return (
       <div>
         <form onSubmit={this.handleSubmit}>
-          <Field
-            label={`
-              ${mode === 'assign' ? 'Recipient' : 'Account'}
-              (must be a valid Ethereum address)
-            `}
-          >
-            <TextInput
-              innerRef={element => (this.holderInput = element)}
-              value={holderField.value}
-              onChange={this.handleHolderChange}
-              wide
+          {mode === 'lock'  && (
+            <RadioList
+              title="Lock Time"
+              description="By locking your tokens you can increase your voting power"
+              items={items}
+              selected={selected}
+              onSelect={this.handleChange}
             />
-          </Field>
-
-          <Field
-            label={`
-              ${lockField.symbol} Tokens to ${mode === 'assign' ? 'lock' : 'unlock'}: ${lockField.value}
-            `}
-          ></Field>
-
-          <Field
-            label={`
-              Voting Tokens ${mode === 'assign' ? 'received' : 'burnt'}: ${amountField.value}
-            `}
-          ></Field>
+          )}
+          {mode === 'unlock'  && (
+            <div>
+              <Field label={`${erc20Symbol} Tokens to unlock: ${formatBalance(lockAmount, erc20DecimalsBase)}`}></Field>
+              <Field label={`${tokenSymbol} Tokens burned: ${holderBalance}`}></Field>
+            </div>
+          )}
+          <br/>
           <Button
             mode="strong"
             type="submit"
-            disabled={amountField.value === '0'}
+            disabled={actionAmount === '0'}
             wide
           >
-            {mode === 'assign' ? 'Lock' : 'Unlock'} Tokens
+            {mode === 'lock' ? 'Lock' : 'Unlock'} Tokens
           </Button>
           <Messages>
             {errorMessage && <ErrorMessage message={errorMessage} />}

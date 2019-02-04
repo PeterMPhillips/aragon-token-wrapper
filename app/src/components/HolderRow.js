@@ -16,13 +16,12 @@ class HolderRow extends React.Component {
   static defaultProps = {
     address: '',
     balance: 0,
-    groupMode: false,
-    onAssignTokens: () => {},
+    onLockTokens: () => {},
     onRemoveTokens: () => {},
   }
-  handleAssignTokens = () => {
-    const { address, onAssignTokens } = this.props
-    onAssignTokens(address)
+  handleLockTokens = () => {
+    const { address, onLockTokens } = this.props
+    onLockTokens(address)
   }
   handleRemoveTokens = () => {
     const { address, onRemoveTokens } = this.props
@@ -32,14 +31,13 @@ class HolderRow extends React.Component {
     const {
       address,
       balance,
-      groupMode,
       isCurrentUser,
       maxAccountTokens,
       tokenDecimalsBase,
     } = this.props
-
+    console.log('Max Tokens: ', maxAccountTokens)
     const singleToken = balance.eq(tokenDecimalsBase)
-    const canAssign = balance.lt(maxAccountTokens)
+    const canLock = balance.lt(maxAccountTokens)
 
     return (
       <TableRow>
@@ -56,19 +54,17 @@ class HolderRow extends React.Component {
             )}
           </Owner>
         </TableCell>
-        {!groupMode && (
-          <TableCell align="right">
-            {formatBalance(balance, tokenDecimalsBase)}
-          </TableCell>
-        )}
+        <TableCell align="right">
+          {formatBalance(balance, tokenDecimalsBase)}
+        </TableCell>
         <TableCell align="right">
           <ContextMenu>
-            {canAssign && (
-              <ContextMenuItem onClick={this.handleAssignTokens}>
+            {canLock && (
+              <ContextMenuItem onClick={this.handleLockTokens}>
                 <IconWrapper>
                   <IconAdd />
                 </IconWrapper>
-                <ActionLabel>Assign Tokens</ActionLabel>
+                <ActionLabel>Lock Tokens</ActionLabel>
               </ContextMenuItem>
             )}
             <ContextMenuItem onClick={this.handleRemoveTokens}>

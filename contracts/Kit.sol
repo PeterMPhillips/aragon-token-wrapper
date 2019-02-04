@@ -28,7 +28,7 @@ contract KitBase is APMNamehash {
     event DeployInstance(address dao);
     event InstalledApp(address appProxy, bytes32 appId);
 
-    function KitBase(DAOFactory _fac, ENS _ens) {
+    constructor(DAOFactory _fac, ENS _ens) {
         ens = _ens;
 
         // If no factory is passed, get it from on-chain bare-kit
@@ -57,10 +57,12 @@ contract Kit is KitBase {
     string tokenName = 'MyBit';
     string tokenSym = 'MYB';
     uint8 tokenDecimals = 18;
-    uint256 tokenSupply = 10**23;
-    uint256 lockAmount = 10**19;
+    uint256 tokenSupply = 10**30;
+    uint256 lockAmount = 10**23;
+    uint256[] lockIntervals = [0, 3, 12];
+    uint256[] tokenIntervals = [1, 2, 3];
 
-    function Kit(ENS ens) KitBase(DAOFactory(0), ens) {
+    constructor(ENS ens) KitBase(DAOFactory(0), ens) {
         tokenFactory = new MiniMeTokenFactory();
     }
 
@@ -68,10 +70,10 @@ contract Kit is KitBase {
         Kernel dao = fac.newDAO(this);
         ACL acl = ACL(dao.acl());
         acl.createPermission(this, dao, dao.APP_MANAGER_ROLE(), this);
-
         address root = msg.sender;
         bytes32 votingAppId = apmNamehash("voting");
         bytes32 tokenLockerAppId = apmNamehash("token-locker");
+
 
         Voting voting = Voting(dao.newAppInstance(votingAppId, latestVersionAppBase(votingAppId)));
         TokenLocker tokenLocker = TokenLocker(dao.newAppInstance(tokenLockerAppId, latestVersionAppBase(tokenLockerAppId)));
@@ -81,17 +83,17 @@ contract Kit is KitBase {
 
         StandardToken erc20 = new StandardToken(tokenName, tokenSym, tokenDecimals, tokenSupply);
         erc20.transfer(msg.sender, tokenSupply);
-        tokenLocker.initialize(token, address(erc20), lockAmount);
+        tokenLocker.initialize(token, address(erc20), lockAmount, lockIntervals, tokenIntervals);
 
         // Initialize apps
         voting.initialize(token, 50 * PCT, 20 * PCT, 1 days);
 
-        acl.createPermission(this, tokenLocker, tokenLocker.MINT_ROLE(), this);
+        acl.createPermission(this, tokenLocker, tokenLocker.LOCK_ROLE(), this);
         //tokenLocker.mint(root, 1); // Give one token to root
 
         acl.createPermission(ANY_ENTITY, voting, voting.CREATE_VOTES_ROLE(), root);
 
-        acl.grantPermission(voting, tokenLocker, tokenLocker.MINT_ROLE());
+        //acl.grantPermission(voting, tokenLocker, tokenLocker.MINT_ROLE());
 
         // Clean up permissions
         acl.grantPermission(root, dao, dao.APP_MANAGER_ROLE());
@@ -102,6 +104,6 @@ contract Kit is KitBase {
         acl.revokePermission(this, acl, acl.CREATE_PERMISSIONS_ROLE());
         acl.setPermissionManager(root, acl, acl.CREATE_PERMISSIONS_ROLE());
 
-        DeployInstance(dao);
+        emit DeployInstance(dao);
     }
 }

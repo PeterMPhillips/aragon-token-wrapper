@@ -1,20 +1,16 @@
 {
   "roles": [
     {
-      "name": "Mint tokens",
-      "id": "MINT_ROLE",
+      "name": "Lock tokens",
+      "id": "LOCK_ROLE",
       "params": [
-        "Receiver",
-        "Token amount"
+        "Lock Time"
       ]
     },
     {
-      "name": "Burn tokens",
-      "id": "BURN_ROLE",
-      "params": [
-        "Holder",
-        "Token amount"
-      ]
+      "name": "Unlock tokens",
+      "id": "UNLOCK_ROLE",
+      "params": []
     }
   ],
   "environments": {

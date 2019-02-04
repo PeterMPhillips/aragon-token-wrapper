@@ -63,9 +63,12 @@ class App extends React.Component {
       }
       this.setState({
         ...this.state,
-        ...erc20Data
+        ...erc20Data,
+        lockIntervals: await this.loadLockIntervals(app),
+        tokenIntervals: await this.loadTokenIntervals(app)
       })
       this.setState({ erc20Loaded:true})
+      console.log(this.state)
     }
   }
   loadERC20Settings(token) {
@@ -91,6 +94,27 @@ class App extends React.Component {
       })
   }
 
+  loadLockIntervals(app) {
+    console.log('Load Token Intervals')
+    return new Promise((resolve, reject) =>
+      app
+        .call('getLockIntervals()')
+        .first()
+        .subscribe(resolve, reject)
+    )
+  }
+
+  loadTokenIntervals(app) {
+    console.log('Load Token Intervals')
+    return new Promise((resolve, reject) =>
+      app
+        .call('getTokenIntervals()')
+        .first()
+        .subscribe(resolve, reject)
+    )
+  }
+
+
   static childContextTypes = {
     network: networkContextType,
   }
@@ -111,14 +135,14 @@ class App extends React.Component {
     )
     return holder ? holder.balance : new BN('0')
   }
-  handleUpdateTokens = ({ holder, mode }) => {
+  handleUpdateTokens = ({ time, mode }) => {
     const { app } = this.props
 
-    if (mode === 'assign') {
-      app.mint(holder, '1')
+    if (mode === 'lock') {
+      app.lock(time)
     }
-    if (mode === 'remove') {
-      app.burn(holder, '1')
+    if (mode === 'unlock') {
+      app.unlock()
     }
 
     this.handleSidepanelClose()
@@ -128,13 +152,13 @@ class App extends React.Component {
   }
   handleLaunchLockTokens = address => {
     this.setState({
-      lockTokensConfig: { mode: 'assign', holderAddress: address },
+      lockTokensConfig: { mode: 'lock', holderAddress: address },
       sidepanelOpened: true,
     })
   }
   handleLaunchRemoveTokens = address => {
     this.setState({
-      lockTokensConfig: { mode: 'remove', holderAddress: address },
+      lockTokensConfig: { mode: 'unlock', holderAddress: address },
       sidepanelOpened: true,
     })
   }
@@ -156,7 +180,6 @@ class App extends React.Component {
       groupMode,
       holders,
       lockAmount,
-      maxAccountTokens,
       numData,
       tokenAddress,
       tokenDecimalsBase,
@@ -172,8 +195,11 @@ class App extends React.Component {
       sidepanelOpened,
       erc20DecimalsBase,
       erc20Symbol,
+      lockIntervals,
+      tokenIntervals
     } = this.state
     console.log(erc20Address);
+    console.log(holders[0]);
     return (
       <PublicUrl.Provider url="./aragon-ui/">
         <BaseStyles />
@@ -204,8 +230,6 @@ class App extends React.Component {
             {appStateReady && holders.length > 0 ? (
               <Holders
                 holders={holders}
-                groupMode={groupMode}
-                maxAccountTokens={maxAccountTokens}
                 tokenAddress={tokenAddress}
                 tokenDecimalsBase={tokenDecimalsBase}
                 tokenName={tokenName}
@@ -213,6 +237,7 @@ class App extends React.Component {
                 tokenSymbol={tokenSymbol}
                 tokenTransfersEnabled={tokenTransfersEnabled}
                 userAccount={userAccount}
+                maxAccountTokens={tokenIntervals ? tokenIntervals[tokenIntervals.length-1] : 0}
                 onLockTokens={this.handleLaunchLockTokens}
                 onRemoveTokens={this.handleLaunchRemoveTokens}
               />
@@ -222,7 +247,7 @@ class App extends React.Component {
           </AppView>
           <SidePanel
             title={
-              lockTokensConfig.mode === 'assign'
+              lockTokensConfig.mode === 'lock'
                 ? 'Lock tokens'
                 : 'Unlock tokens'
             }
@@ -233,6 +258,7 @@ class App extends React.Component {
             {appStateReady && erc20Loaded && (
               <LockTokensPanelContent
                 opened={sidepanelOpened}
+                tokenSymbol={tokenSymbol}
                 tokenDecimals={numData.tokenDecimals}
                 tokenDecimalsBase={tokenDecimalsBase}
                 erc20Address={erc20Address}
@@ -240,8 +266,9 @@ class App extends React.Component {
                 erc20Symbol={erc20Symbol}
                 onUpdateTokens={this.handleUpdateTokens}
                 getHolderBalance={this.getHolderBalance}
-                maxAccountTokens={maxAccountTokens}
                 lockAmount={lockAmount}
+                lockIntervals={lockIntervals}
+                tokenIntervals={tokenIntervals}
                 {...lockTokensConfig}
               />
             )}
@@ -282,7 +309,6 @@ export default observe(
       const {
         holders,
         lockAmount,
-        maxAccountTokens,
         tokenDecimals,
         tokenSupply,
         tokenTransfersEnabled,
@@ -305,9 +331,8 @@ export default observe(
           : [],
         tokenDecimals: new BN(tokenDecimals),
         tokenSupply: new BN(tokenSupply),
-        maxAccountTokens: new BN(maxAccountTokens),
         lockAmount: new BN(lockAmount),
-        groupMode: tokenTransfersEnabled && maxAccountTokens === '1',
+        groupMode: tokenTransfersEnabled,
       }
     }),
   {}

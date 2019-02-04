@@ -81,7 +81,6 @@ async function createStore(token, tokenAddr) {
           ...nextState,
           tokenAddress: tokenAddr,
           erc20Address: await loadERC20(),
-          maxAccountTokens: await loadMaxAccountTokens(),
           lockAmount: await loadLockAmount(),
         }
       } else if (addressesEqual(address, tokenAddr)) {
@@ -171,15 +170,6 @@ function loadERC20() {
   return new Promise((resolve, reject) =>
     app
       .call('erc20')
-      .first()
-      .subscribe(resolve, reject)
-  )
-}
-
-function loadMaxAccountTokens() {
-  return new Promise((resolve, reject) =>
-    app
-      .call('maxAccountTokens')
       .first()
       .subscribe(resolve, reject)
   )
