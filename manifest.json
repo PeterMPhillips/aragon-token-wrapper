@@ -1,10 +1,10 @@
 {
-  "name": "Token Locker",
+  "name": "Token Wrapper",
   "description": "Controls an organization token allowing to mint new tokens, assign them and create vestings",
   "icons": [{
-    "src": "icon.svg",
+    "src": "/images/icon.svg",
     "sizes": "192x192"
   }],
-  "start_url": "/app/build/index.html",
-  "script": "/app/build/script.js"
+  "start_url": "/index.html",
+  "script": "/script.js"
 }

@@ -16,18 +16,16 @@ import {
 } from '@aragon/ui'
 import EmptyState from './screens/EmptyState'
 import Holders from './screens/Holders'
-import LockTokensPanelContent from './components/Panels/LockTokensPanelContent'
+import WrapTokensPanelContent from './components/Panels/WrapTokensPanelContent'
 import MenuButton from './components/MenuButton/MenuButton'
 import { networkContextType } from './provide-network'
-import { erc20Settings, hasLoadedERC20Settings, hasLoadedTokenSettings } from './token-settings'
+import { hasLoadedTokenSettings, hasLoadedERC20Settings } from './token-settings'
 import { makeEtherscanBaseUrl } from './utils'
 import { addressesEqual } from './web3-utils'
-import erc20Abi from './abi/standardToken.json'
 
 
-const initialLockTokensConfig = {
+const initialWrapTokensConfig = {
   mode: null,
-  holderAddress: '',
 }
 
 class App extends React.Component {
@@ -37,83 +35,15 @@ class App extends React.Component {
   }
   static defaultProps = {
     appStateReady: false,
-    erc20Processing: false,
-    erc20Loaded: false,
     holders: [],
     network: {},
     userAccount: '',
     groupMode: false,
   }
   state = {
-    lockTokensConfig: initialLockTokensConfig,
+    wrapTokensConfig: initialWrapTokensConfig,
     sidepanelOpened: false,
   }
-
-  async componentWillReceiveProps({ app, erc20Address }) {
-    if(!this.state.erc20Processing && erc20Address){
-      this.setState({ erc20Processing:true})
-      let erc20 = app.external(erc20Address, erc20Abi)
-      let tempData = await this.loadERC20Settings(erc20)
-      let erc20DecimalsBase = new BN(10).pow(new BN(tempData.erc20Decimals))
-      let erc20Data = {
-        ...tempData,
-        erc20DecimalsBase,
-        erc20Decimals: new BN(tempData.erc20Decimals),
-        erc20Supply: new BN(tempData.erc20Supply)
-      }
-      this.setState({
-        ...this.state,
-        ...erc20Data,
-        lockIntervals: await this.loadLockIntervals(app),
-        tokenIntervals: await this.loadTokenIntervals(app)
-      })
-      this.setState({ erc20Loaded:true})
-      console.log(this.state)
-    }
-  }
-  loadERC20Settings(token) {
-    return Promise.all(
-      erc20Settings.map(
-        ([name, key, type = 'string']) =>
-          new Promise((resolve, reject) =>
-            token[name]()
-              .first()
-              .subscribe(value => {
-                resolve({ [key]: value })
-              }, reject)
-          )
-      )
-    )
-      .then(settings =>
-        settings.reduce((acc, setting) => ({ ...acc, ...setting }), {})
-      )
-      .catch(err => {
-        console.error("Failed to load token's settings", err)
-        // Return an empty object to try again later
-        return {}
-      })
-  }
-
-  loadLockIntervals(app) {
-    console.log('Load Token Intervals')
-    return new Promise((resolve, reject) =>
-      app
-        .call('getLockIntervals()')
-        .first()
-        .subscribe(resolve, reject)
-    )
-  }
-
-  loadTokenIntervals(app) {
-    console.log('Load Token Intervals')
-    return new Promise((resolve, reject) =>
-      app
-        .call('getTokenIntervals()')
-        .first()
-        .subscribe(resolve, reject)
-    )
-  }
-
 
   static childContextTypes = {
     network: networkContextType,
@@ -135,30 +65,37 @@ class App extends React.Component {
     )
     return holder ? holder.balance : new BN('0')
   }
-  handleUpdateTokens = ({ time, mode }) => {
-    const { app } = this.props
+  handleUpdateTokens = ({ amount, mode }) => {
+    const { app, erc20Address } = this.props
 
-    if (mode === 'lock') {
-      app.lock(time)
+    if (mode === 'wrap') {
+      let intentParams = {
+        token: { address: erc20Address, value: amount },
+        // While it's generally a bad idea to hardcode gas in intents, in the case of token deposits
+        // it prevents metamask from doing the gas estimation and telling the user that their
+        // transaction will fail (before the approve is mined).
+        // The actual gas cost is around ~180k + 20k per 32 chars of text + 80k per period
+        // transition but we do the estimation with some breathing room in case it is being
+        // forwarded (unlikely in deposit).
+        gas:'500000'
+      }
+      app.wrap(amount, intentParams)
     }
-    if (mode === 'unlock') {
-      app.unlock()
+    if (mode === 'unwrap') {
+      app.unwrap(amount)
     }
 
     this.handleSidepanelClose()
   }
-  handleLaunchLockTokensNoHolder = () => {
-    this.handleLaunchLockTokens('')
-  }
-  handleLaunchLockTokens = address => {
+  handleLaunchWrapTokens = () => {
     this.setState({
-      lockTokensConfig: { mode: 'lock', holderAddress: address },
+      wrapTokensConfig: { mode: 'wrap' },
       sidepanelOpened: true,
     })
   }
-  handleLaunchRemoveTokens = address => {
+  handleLaunchUnwrapTokens = () => {
     this.setState({
-      lockTokensConfig: { mode: 'unlock', holderAddress: address },
+      wrapTokensConfig: { mode: 'unwrap' },
       sidepanelOpened: true,
     })
   }
@@ -170,36 +107,32 @@ class App extends React.Component {
   }
   handleSidepanelTransitionEnd = open => {
     if (!open) {
-      this.setState({ lockTokensConfig: initialLockTokensConfig })
+      this.setState({ wrapTokensConfig: initialWrapTokensConfig })
     }
   }
   render() {
     const {
       appStateReady,
-      erc20Address,
       groupMode,
       holders,
-      lockAmount,
       numData,
       tokenAddress,
       tokenDecimalsBase,
       tokenName,
       tokenSupply,
       tokenSymbol,
+      erc20Address,
+      erc20Decimals,
+      erc20DecimalsBase,
+      erc20Symbol,
       tokenTransfersEnabled,
       userAccount,
     } = this.props
     const {
-      erc20Loaded,
-      lockTokensConfig,
+      wrapTokensConfig,
       sidepanelOpened,
-      erc20DecimalsBase,
-      erc20Symbol,
-      lockIntervals,
-      tokenIntervals
     } = this.state
-    console.log(erc20Address);
-    console.log(holders[0]);
+
     return (
       <PublicUrl.Provider url="./aragon-ui/">
         <BaseStyles />
@@ -212,16 +145,16 @@ class App extends React.Component {
                     <BreakPoint to="medium">
                       <MenuButton onClick={this.handleMenuPanelOpen} />
                     </BreakPoint>
-                    <TitleLabel>Token Locker</TitleLabel>
+                    <TitleLabel>Token Wrapper</TitleLabel>
                     {tokenSymbol && <Badge.App>{tokenSymbol}</Badge.App>}
                   </Title>
                 }
                 endContent={
                   <Button
                     mode="strong"
-                    onClick={this.handleLaunchLockTokensNoHolder}
+                    onClick={this.handleLaunchWrapTokens}
                   >
-                    Lock Tokens
+                    Wrap Tokens
                   </Button>
                 }
               />
@@ -237,39 +170,36 @@ class App extends React.Component {
                 tokenSymbol={tokenSymbol}
                 tokenTransfersEnabled={tokenTransfersEnabled}
                 userAccount={userAccount}
-                maxAccountTokens={tokenIntervals ? tokenIntervals[tokenIntervals.length-1] : 0}
-                onLockTokens={this.handleLaunchLockTokens}
-                onRemoveTokens={this.handleLaunchRemoveTokens}
+                onWrapTokens={this.handleLaunchWrapTokens}
+                onUnwrapTokens={this.handleLaunchUnwrapTokens}
               />
             ) : (
-              <EmptyState onActivate={this.handleLaunchLockTokensNoHolder} />
+              <EmptyState onActivate={this.handleLaunchWrapTokensNoHolder} />
             )}
           </AppView>
           <SidePanel
             title={
-              lockTokensConfig.mode === 'lock'
-                ? 'Lock tokens'
-                : 'Unlock tokens'
+              wrapTokensConfig.mode === 'wrap'
+                ? 'Wrap Tokens'
+                : 'Unwrap Tokens'
             }
             opened={sidepanelOpened}
             onClose={this.handleSidepanelClose}
             onTransitionEnd={this.handleSidepanelTransitionEnd}
           >
-            {appStateReady && erc20Loaded && (
-              <LockTokensPanelContent
+            {appStateReady && (
+              <WrapTokensPanelContent
                 opened={sidepanelOpened}
                 tokenSymbol={tokenSymbol}
                 tokenDecimals={numData.tokenDecimals}
                 tokenDecimalsBase={tokenDecimalsBase}
                 erc20Address={erc20Address}
-                erc20DecimalsBase={erc20DecimalsBase}
                 erc20Symbol={erc20Symbol}
+                erc20Decimals={erc20Decimals}
+                erc20DecimalsBase={erc20DecimalsBase}
                 onUpdateTokens={this.handleUpdateTokens}
                 getHolderBalance={this.getHolderBalance}
-                lockAmount={lockAmount}
-                lockIntervals={lockIntervals}
-                tokenIntervals={tokenIntervals}
-                {...lockTokensConfig}
+                {...wrapTokensConfig}
               />
             )}
           </SidePanel>
@@ -298,7 +228,7 @@ export default observe(
   // and calculate tokenDecimalsBase.
   observable =>
     observable.map(state => {
-      const appStateReady = hasLoadedTokenSettings(state)
+      const appStateReady = hasLoadedTokenSettings(state) && hasLoadedERC20Settings(state)
       if (!appStateReady) {
         return {
           ...state,
@@ -308,16 +238,18 @@ export default observe(
 
       const {
         holders,
-        lockAmount,
+        erc20Decimals,
         tokenDecimals,
         tokenSupply,
         tokenTransfersEnabled,
       } = state
       const tokenDecimalsBase = new BN(10).pow(new BN(tokenDecimals))
+      const erc20DecimalsBase = new BN(10).pow(new BN(erc20Decimals))
       return {
         ...state,
         appStateReady,
         tokenDecimalsBase,
+        erc20DecimalsBase,
         // Note that numbers in `numData` are not safe for accurate computations
         // (but are useful for making divisions easier)
         numData: {
@@ -330,8 +262,8 @@ export default observe(
               .sort((a, b) => b.balance.cmp(a.balance))
           : [],
         tokenDecimals: new BN(tokenDecimals),
+        erc20Decimals: new BN(erc20Decimals),
         tokenSupply: new BN(tokenSupply),
-        lockAmount: new BN(lockAmount),
         groupMode: tokenTransfersEnabled,
       }
     }),

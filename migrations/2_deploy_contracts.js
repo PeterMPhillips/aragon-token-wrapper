@@ -1,5 +1,5 @@
-var CounterApp = artifacts.require('CounterApp.sol')
+var TokenWrapper = artifacts.require('TokenWrapper.sol')
 
 module.exports = function (deployer) {
-  deployer.deploy(CounterApp)
+  deployer.deploy(TokenWrapper)
 }

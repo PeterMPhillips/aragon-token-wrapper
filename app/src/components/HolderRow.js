@@ -16,28 +16,25 @@ class HolderRow extends React.Component {
   static defaultProps = {
     address: '',
     balance: 0,
-    onLockTokens: () => {},
-    onRemoveTokens: () => {},
+    onWrapTokens: () => {},
+    onUnwrapTokens: () => {},
   }
-  handleLockTokens = () => {
-    const { address, onLockTokens } = this.props
-    onLockTokens(address)
+  handleWrapTokens = () => {
+    const { address, onWrapTokens } = this.props
+    onWrapTokens(address)
   }
-  handleRemoveTokens = () => {
-    const { address, onRemoveTokens } = this.props
-    onRemoveTokens(address)
+  handleUnwrapTokens = () => {
+    const { address, onUnwrapTokens } = this.props
+    onUnwrapTokens(address)
   }
   render() {
     const {
       address,
       balance,
       isCurrentUser,
-      maxAccountTokens,
       tokenDecimalsBase,
     } = this.props
-    console.log('Max Tokens: ', maxAccountTokens)
     const singleToken = balance.eq(tokenDecimalsBase)
-    const canLock = balance.lt(maxAccountTokens)
 
     return (
       <TableRow>
@@ -58,25 +55,25 @@ class HolderRow extends React.Component {
           {formatBalance(balance, tokenDecimalsBase)}
         </TableCell>
         <TableCell align="right">
-          <ContextMenu>
-            {canLock && (
-              <ContextMenuItem onClick={this.handleLockTokens}>
+          {isCurrentUser && (
+            <ContextMenu>
+              <ContextMenuItem onClick={this.handleWrapTokens}>
                 <IconWrapper>
                   <IconAdd />
                 </IconWrapper>
-                <ActionLabel>Lock Tokens</ActionLabel>
+                <ActionLabel>Wrap Tokens</ActionLabel>
               </ContextMenuItem>
-            )}
-            <ContextMenuItem onClick={this.handleRemoveTokens}>
-              <IconWrapper>
-                <IconRemove />
-              </IconWrapper>
-              <ActionLabel>
-                Remove Token
-                {singleToken ? '' : 's'}
-              </ActionLabel>
-            </ContextMenuItem>
-          </ContextMenu>
+              <ContextMenuItem onClick={this.handleUnwrapTokens}>
+                <IconWrapper>
+                  <IconRemove />
+                </IconWrapper>
+                <ActionLabel>
+                  Unwrap Token
+                  {singleToken ? '' : 's'}
+                </ActionLabel>
+              </ContextMenuItem>
+            </ContextMenu>
+          )}
         </TableCell>
       </TableRow>
     )

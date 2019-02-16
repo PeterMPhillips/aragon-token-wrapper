@@ -1,35 +1,37 @@
 {
   "roles": [
     {
-      "name": "Lock tokens",
-      "id": "LOCK_ROLE",
+      "name": "Wrap ERC-20 tokens",
+      "id": "WRAP_ROLE",
       "params": [
-        "Lock Time"
+        "Amount"
       ]
     },
     {
-      "name": "Unlock tokens",
-      "id": "UNLOCK_ROLE",
-      "params": []
+      "name": "Unwrap ERC-20 tokens",
+      "id": "UNWRAP_ROLE",
+      "params": [
+        "Amount"
+      ]
     }
   ],
   "environments": {
     "default": {
       "network": "development",
-      "appName": "token-locker.aragonpm.eth"
+      "appName": "token-wrapper.aragonpm.eth"
     },
     "staging": {
       "registry": "0x98df287b6c145399aaa709692c8d308357bc085d",
-      "appName": "token-locker.open.aragonpm.eth",
+      "appName": "token-wrapper.open.aragonpm.eth",
       "wsRPC": "wss://rinkeby.eth.aragon.network/ws",
       "network": "rinkeby"
     },
     "production": {
       "registry": "0x314159265dd8dbb310642f98f50c066173c1259b",
-      "appName": "token-locker.open.aragonpm.eth",
+      "appName": "token-wrapperr.open.aragonpm.eth",
       "wsRPC": "wss://mainnet.eth.aragon.network/ws",
       "network": "mainnet"
     }
   },
-  "path": "contracts/TokenLocker.sol"
+  "path": "contracts/TokenWrapper.sol"
 }

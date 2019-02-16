@@ -1,8 +1,9 @@
 import Aragon from '@aragon/client'
 import { of } from './rxjs'
-import tokenSettings, { hasLoadedTokenSettings } from './token-settings'
+import tokenSettings, { erc20Settings, hasLoadedTokenSettings, hasLoadedERC20Settings } from './token-settings'
 import { addressesEqual } from './web3-utils'
 import tokenAbi from './abi/minimeToken.json'
+import erc20Abi from './abi/standardToken.json'
 
 const INITIALIZATION_TRIGGER = Symbol('INITIALIZATION_TRIGGER')
 
@@ -38,10 +39,31 @@ const retryEvery = (callback, initialRetryTimer = 1000, increaseFactor = 5) => {
 
 // Get the token address to initialize ourselves
 retryEvery(retry => {
+  let tokenAddress, erc20Address
+
   app
     .call('token')
     .first()
-    .subscribe(initialize, err => {
+    .subscribe(
+      function(result) {
+        tokenAddress = result
+        app
+          .call('erc20')
+          .first()
+          .subscribe(
+            function(result){
+              erc20Address = result
+              initialize(tokenAddress, erc20Address)
+            }
+            , err => {
+            console.error(
+              'Could not start background script execution due to the contract not loading the erc20:',
+              err
+            )
+            retry()
+          })
+      }
+      , err => {
       console.error(
         'Could not start background script execution due to the contract not loading the token:',
         err
@@ -50,8 +72,9 @@ retryEvery(retry => {
     })
 })
 
-async function initialize(tokenAddr) {
+async function initialize(tokenAddr, erc20Addr) {
   const token = app.external(tokenAddr, tokenAbi)
+  const erc20 = app.external(erc20Addr, erc20Abi)
   try {
     const tokenSymbol = await loadTokenSymbol(token)
     app.identify(tokenSymbol);
@@ -62,11 +85,11 @@ async function initialize(tokenAddr) {
     )
   }
 
-  return createStore(token, tokenAddr)
+  return createStore(token, tokenAddr, erc20, erc20Addr)
 }
 
 // Hook up the script as an aragon.js store
-async function createStore(token, tokenAddr) {
+async function createStore(token, tokenAddr, erc20, erc20Addr) {
   return app.store(
     async (state, { address, event, returnValues }) => {
       let nextState = {
@@ -75,13 +98,17 @@ async function createStore(token, tokenAddr) {
         ...(!hasLoadedTokenSettings(state)
           ? await loadTokenSettings(token)
           : {}),
+        ...(!hasLoadedERC20Settings(state)
+          ? await loadERC20Settings(erc20)
+          : {}),
       }
+      console.log('Next State:')
+      console.log(nextState)
       if (event === INITIALIZATION_TRIGGER) {
         nextState = {
           ...nextState,
           tokenAddress: tokenAddr,
-          erc20Address: await loadERC20(),
-          lockAmount: await loadLockAmount(),
+          erc20Address: erc20Addr,
         }
       } else if (addressesEqual(address, tokenAddr)) {
         switch (event) {
@@ -166,24 +193,6 @@ function updateHolders(holders, changed) {
   }
 }
 
-function loadERC20() {
-  return new Promise((resolve, reject) =>
-    app
-      .call('erc20')
-      .first()
-      .subscribe(resolve, reject)
-  )
-}
-
-function loadLockAmount() {
-  return new Promise((resolve, reject) =>
-    app
-      .call('lockAmount')
-      .first()
-      .subscribe(resolve, reject)
-  )
-}
-
 function loadNewBalances(token, ...addresses) {
   return Promise.all(
     addresses.map(
@@ -233,6 +242,28 @@ function loadTokenSettings(token) {
     )
     .catch(err => {
       console.error("Failed to load token's settings", err)
+      // Return an empty object to try again later
+      return {}
+    })
+}
+
+function loadERC20Settings(token) {
+  return Promise.all(
+    erc20Settings.map(
+      ([name, key, type = 'string']) =>
+        new Promise((resolve, reject) =>
+          token[name]()
+            .first()
+            .subscribe(value => {
+              resolve({ [key]: value })
+            }, reject)
+        )
+    )
+  ).then(settings =>
+      settings.reduce((acc, setting) => ({ ...acc, ...setting }), {})
+    )
+    .catch(err => {
+      console.error("Failed to load erc20's settings", err)
       // Return an empty object to try again later
       return {}
     })

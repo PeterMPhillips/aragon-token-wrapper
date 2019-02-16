@@ -17,7 +17,7 @@ import "@aragon/os/contracts/lib/ens/PublicResolver.sol";
 import "@aragon/os/contracts/apm/APMNamehash.sol";
 
 import "@aragon/apps-voting/contracts/Voting.sol";
-import "./TokenLocker.sol";
+import "./TokenWrapper.sol";
 import "./StandardToken.sol";
 import "@aragon/apps-shared-minime/contracts/MiniMeToken.sol";
 
@@ -54,8 +54,8 @@ contract Kit is KitBase {
     uint64 constant PCT = 10 ** 16;
     address constant ANY_ENTITY = address(-1);
 
-    string tokenName = 'MyBit';
-    string tokenSym = 'MYB';
+    string tokenName = 'Token';
+    string tokenSym = 'TKN';
     uint8 tokenDecimals = 18;
     uint256 tokenSupply = 10**30;
     uint256 lockAmount = 10**23;
@@ -72,28 +72,27 @@ contract Kit is KitBase {
         acl.createPermission(this, dao, dao.APP_MANAGER_ROLE(), this);
         address root = msg.sender;
         bytes32 votingAppId = apmNamehash("voting");
-        bytes32 tokenLockerAppId = apmNamehash("token-locker");
+        bytes32 tokenWrapperAppId = apmNamehash("token-wrapper");
 
 
         Voting voting = Voting(dao.newAppInstance(votingAppId, latestVersionAppBase(votingAppId)));
-        TokenLocker tokenLocker = TokenLocker(dao.newAppInstance(tokenLockerAppId, latestVersionAppBase(tokenLockerAppId)));
+        TokenWrapper tokenWrapper = TokenWrapper(dao.newAppInstance(tokenWrapperAppId, latestVersionAppBase(tokenWrapperAppId)));
 
-        MiniMeToken token = tokenFactory.createCloneToken(MiniMeToken(0), 0, "MyVote", 0, "MYV", true);
-        token.changeController(tokenLocker);
+        MiniMeToken token = tokenFactory.createCloneToken(MiniMeToken(0), 0, "Wrapped Token", tokenDecimals, "WTKN", true);
+        token.changeController(tokenWrapper);
 
         StandardToken erc20 = new StandardToken(tokenName, tokenSym, tokenDecimals, tokenSupply);
         erc20.transfer(msg.sender, tokenSupply);
-        tokenLocker.initialize(token, address(erc20), lockAmount, lockIntervals, tokenIntervals);
+        tokenWrapper.initialize(address(token), address(erc20), true);
 
         // Initialize apps
         voting.initialize(token, 50 * PCT, 20 * PCT, 1 days);
 
-        acl.createPermission(this, tokenLocker, tokenLocker.LOCK_ROLE(), this);
-        //tokenLocker.mint(root, 1); // Give one token to root
+        acl.createPermission(this, tokenWrapper, tokenWrapper.WRAP_ROLE(), this);
 
-        acl.createPermission(ANY_ENTITY, voting, voting.CREATE_VOTES_ROLE(), root);
+        acl.createPermission(tokenWrapper, voting, voting.CREATE_VOTES_ROLE(), voting);
 
-        //acl.grantPermission(voting, tokenLocker, tokenLocker.MINT_ROLE());
+        //acl.grantPermission(voting, tokenWrapper, tokenWrapper.WRAP_ROLE());
 
         // Clean up permissions
         acl.grantPermission(root, dao, dao.APP_MANAGER_ROLE());
