@@ -93,8 +93,9 @@ class App extends React.Component {
   }
   handleUpdateTokens = ({ amount, mode }) => {
     const { app, erc20Address } = this.props
-
+    console.log('Amount: ', amount)
     if (mode === 'wrap') {
+      console.log('2')
       let intentParams = {
         token: { address: erc20Address, value: amount },
         // While it's generally a bad idea to hardcode gas in intents, in the case of token deposits

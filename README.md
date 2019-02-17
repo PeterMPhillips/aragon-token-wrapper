@@ -1,25 +1,15 @@
-# Aragon React Kit Boilerplate
-
-> 🕵️ [Find more boilerplates using GitHub](https://github.com/search?q=topic:aragon-boilerplate) |
-> ✨ [Official boilerplates](https://github.com/search?q=topic:aragon-boilerplate+org:aragon)
-
-React boilerplate for Aragon applications.
-
-This boilerplate also includes a fully working example app, complete with a background worker and a front-end in React (with Aragon UI).
+# Token Wrapper
+## Current Rinkeby Deployment -- token-wrapper.open.aragonpm.eth v1.0.3
+ - Contract address: 0x93B8E239E1047e0c9cDcce6247a23c16973c56Fb
+ - Content (ipfs): QmeEG37AzHo5Ax5igvaCDsyka5QPnsBQP3u9fuC898tJdY
+ - Transaction hash: 0xa65e2d6ceaf389c6dcbfb72118e56c5675b181f77e682ac5485bf35468962547
 
 ## Usage
 
 Kit support requires using the Aragon CLI with a version greater than 4.1.0.
 ```sh
 npm install -g @aragon/cli
-aragon init app react-kit
 ```
-
-## Make the kit work with your app
-
-- In order for the kit to work properly, it needs to know what the name of your app is. Replace `app` in [this line](https://github.com/aragon/aragon-react-kit-boilerplate/blob/dd7d571da4ab1ee6a0a82130b0c2c5d6218771b6/contracts/Kit.sol#L58) with the name of your app in the `arapp.json` file (e.g. `myapp` for `myapp.aragonpm.eth`)
-
-- Edit the roles defined in the kit to configure your DAO as you want!
 
 ## Run the kit
 

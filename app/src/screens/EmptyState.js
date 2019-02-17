@@ -8,8 +8,8 @@ const EmptyState = ({ onActivate }) => (
     <EmptyStateCard
       icon={<img src={emptyIcon} alt="" />}
       title="Nothing here."
-      text="Lock tokens to start using the app."
-      actionText="Lock Tokens"
+      text="Wrap tokens to start using the app."
+      actionText="Wrap Tokens"
       onActivate={onActivate}
     />
   </Main>
