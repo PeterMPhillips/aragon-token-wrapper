@@ -22,7 +22,7 @@ import { networkContextType } from './provide-network'
 import { hasLoadedTokenSettings, hasLoadedERC20Settings } from './token-settings'
 import { makeEtherscanBaseUrl } from './utils'
 import { addressesEqual } from './web3-utils'
-
+import erc20Abi from './abi/standardToken.json'
 
 const initialWrapTokensConfig = {
   mode: null,
@@ -41,13 +41,39 @@ class App extends React.Component {
     groupMode: false,
   }
   state = {
+    tokenBalance: new BN(0),
+    erc20Balance: new BN(0),
     wrapTokensConfig: initialWrapTokensConfig,
     sidepanelOpened: false,
+  }
+
+  async componentWillReceiveProps({ app, userAccount, erc20Address }) {
+    if(erc20Address !== undefined && userAccount != ''){
+      console.log('User: ', userAccount)
+      let erc20 = app.external(erc20Address, erc20Abi)
+
+      this.setState({
+        ...this.state,
+        erc20Balance: new BN(await this.loadBalance(erc20, userAccount)),
+        tokenBalance: this.getHolderBalance(userAccount),
+      })
+
+    }
+  }
+
+  loadBalance(erc20, address) {
+    return new Promise((resolve, reject) =>
+      erc20
+        .balanceOf(address)
+        .first()
+        .subscribe(resolve, reject)
+    )
   }
 
   static childContextTypes = {
     network: networkContextType,
   }
+
   getChildContext() {
     const { network } = this.props
 
@@ -117,6 +143,7 @@ class App extends React.Component {
       holders,
       numData,
       tokenAddress,
+      tokenDecimals,
       tokenDecimalsBase,
       tokenName,
       tokenSupply,
@@ -129,6 +156,8 @@ class App extends React.Component {
       userAccount,
     } = this.props
     const {
+      erc20Balance,
+      tokenBalance,
       wrapTokensConfig,
       sidepanelOpened,
     } = this.state
@@ -191,14 +220,15 @@ class App extends React.Component {
               <WrapTokensPanelContent
                 opened={sidepanelOpened}
                 tokenSymbol={tokenSymbol}
-                tokenDecimals={numData.tokenDecimals}
+                tokenBalance={tokenBalance}
+                tokenDecimals={tokenDecimals}
                 tokenDecimalsBase={tokenDecimalsBase}
                 erc20Address={erc20Address}
                 erc20Symbol={erc20Symbol}
+                erc20Balance={erc20Balance}
                 erc20Decimals={erc20Decimals}
                 erc20DecimalsBase={erc20DecimalsBase}
                 onUpdateTokens={this.handleUpdateTokens}
-                getHolderBalance={this.getHolderBalance}
                 {...wrapTokensConfig}
               />
             )}
