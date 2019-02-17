@@ -4,7 +4,19 @@
  - Content (ipfs): QmeEG37AzHo5Ax5igvaCDsyka5QPnsBQP3u9fuC898tJdY
  - Transaction hash: 0xa65e2d6ceaf389c6dcbfb72118e56c5675b181f77e682ac5485bf35468962547
 
-## Usage
+## Installing an Rinkeby
+ - [Follow this guide to deploy a custom Aragon DAO](https://forum.aragon.org/t/guide-custom-aragon-organization-deployment-using-the-cli/507)
+ - Instead of installing token-manager, install token-wrapper.open.aragonpm.eth:
+ ```sh
+ dao install [dao-address] token-wrapper.open.aragonpm.eth --app-init none
+ ```
+ - Follow all all the same direction, using the token-wrapper address anywhere it says to use the token manager address
+ - However, to initialize the app you must pass some different parameters:
+ ```sh
+ dao exec [dao-address] [token-wrapper-address] initialize [token-address] [erc20-address] true
+ ```
+
+## Local Usage
 
 Kit support requires using the Aragon CLI with a version greater than 4.1.0.
 ```sh
