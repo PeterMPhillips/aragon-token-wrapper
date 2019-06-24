@@ -175,7 +175,7 @@ class App extends React.Component {
                     <BreakPoint to="medium">
                       <MenuButton onClick={this.handleMenuPanelOpen} />
                     </BreakPoint>
-                    <TitleLabel>Token Wrapper</TitleLabel>
+                    <TitleLabel>Token Wrapper PITCH</TitleLabel>
                     {tokenSymbol && <Badge.App>{tokenSymbol}</Badge.App>}
                   </Title>
                 }

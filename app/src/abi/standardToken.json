@@ -2,7 +2,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "name",
+    "name": "_name",
     "outputs": [
       {
         "name": "",
@@ -16,7 +16,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "decimals",
+    "name": "_decimals",
     "outputs": [
       {
         "name": "",
@@ -30,7 +30,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "symbol",
+    "name": "_symbol",
     "outputs": [
       {
         "name": "",

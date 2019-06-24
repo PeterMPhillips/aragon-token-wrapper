@@ -12,13 +12,17 @@ const DEFAULT_MNEMONIC = 'explain tackle mirror kit van hammer degree position g
 const defaultRPC = (network) =>
   `https://${network}.infura.io`
 
-const configFilePath = (filename) =>
-  path.join(homedir(), `.aragon/${filename}`)
+const configFilePath = (filename) => {
+	console.log(">>> configFilePath:", path.join(homedir(), `.aragon/${filename}`))
+	return path.join(homedir(), `.aragon/${filename}`)
+}
 
 const mnemonic = () => {
   try {
+	console.log(">>> try:", configFilePath('mnemonic.json'))
     return require(configFilePath('mnemonic.json')).mnemonic
   } catch (e) {
+	console.log(">>> catch:", e)
     return DEFAULT_MNEMONIC
   }
 }
@@ -37,7 +41,10 @@ const providerForNetwork = (network) => (
     let { rpc, keys } = settingsForNetwork(network)
     rpc = rpc || defaultRPC(network)
 
+	console.log("keys: ", keys)
+	console.log("rpc: ", rpc)
     if (!keys || keys.length == 0) {
+		console.log("here: ", rpc)
       return new HDWalletProvider(mnemonic(), rpc)
     }
 
