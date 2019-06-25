@@ -13,16 +13,16 @@ const defaultRPC = (network) =>
   `https://${network}.infura.io`
 
 const configFilePath = (filename) => {
-	console.log(">>> configFilePath:", path.join(homedir(), `.aragon/${filename}`))
+	console.log("configFilePath:", path.join(homedir(), `.aragon/${filename}`))
 	return path.join(homedir(), `.aragon/${filename}`)
 }
 
 const mnemonic = () => {
   try {
-	console.log(">>> try:", configFilePath('mnemonic.json'))
+	console.log("try: ", configFilePath('mnemonic.json'))
     return require(configFilePath('mnemonic.json')).mnemonic
   } catch (e) {
-	console.log(">>> catch:", e)
+	console.log("catch: ", e)
     return DEFAULT_MNEMONIC
   }
 }
