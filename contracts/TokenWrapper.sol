@@ -141,6 +141,6 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
     *      as the it has the concept of issuing tokens without assigning them
     */
     function allowRecoverability(address _token) public view returns (bool) {
-        return _token != address(token);
+        return _token != address(token) && _token != address(erc20);
     }
 }
