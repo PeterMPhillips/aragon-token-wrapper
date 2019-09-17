@@ -82,8 +82,9 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
 
         // Add the managed token to the blacklist to disallow a token holder from executing actions
         // on the token controller's (this contract) behalf
-        address[] memory blacklist = new address[](1);
+        address[] memory blacklist = new address[](2);
         blacklist[0] = address(token);
+        blacklist[1] = address(erc20);
 
         runScript(_evmScript, input, blacklist);
     }
