@@ -21,8 +21,7 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
     using SafeMath for uint256;
     using Uint256Helpers for uint256;
 
-    bytes32 public constant WRAP_ROLE = keccak256("WRAP_ROLE");
-    bytes32 public constant UNWRAP_ROLE = keccak256("UNWRAP_ROLE");
+    bytes32 public constant BAN_ROLE = keccak256("BAN_ROLE");
 
     string private constant ERROR_TOKEN_CONTROLLER = "TM_TOKEN_CONTROLLER";
     string private constant ERROR_MINT_BALANCE_INCREASE_NOT_ALLOWED = "TM_MINT_BAL_INC_NOT_ALLOWED";
@@ -32,6 +31,10 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
 
     MiniMeToken public token;
     ERC20 public erc20;
+
+    mapping(address => bool) public banned;
+
+    event UserBanned(address user);
 
     /**
     * @notice Initialize Token Manager for `_token.symbol(): string`, whose tokens are `transferable ? 'not' : ''` transferable`_maxAccountTokens > 0 ? ' and limited to a maximum of ' + @tokenAmount(_token, _maxAccountTokens, false) + ' per account' : ''`
@@ -52,7 +55,8 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
     }
 
     /**
-    * @notice Wrap Tokens
+    * @notice Wrap `@tokenAmount(self.token(): address, _amount, false)` tokens
+    * @param _amount The amount of tokens that will be wrapped
     */
     function wrap(uint256 _amount) external {
       require(_amount > 0);
@@ -62,13 +66,28 @@ contract TokenWrapper is ITokenController, IForwarder, AragonApp {
     }
 
     /**
-    * @notice Unwrap Tokens
+    * @notice Unwrap `@tokenAmount(self.erc20(): address, _amount, false)` tokens
+    * @param _amount The amount of tokens that will be unwrapped
     */
     function unwrap(uint256 _amount) external {
       require(_amount > 0);
       require(token.balanceOf(msg.sender) >= _amount);
       token.destroyTokens(msg.sender, _amount);
       erc20.transfer(msg.sender, _amount);
+    }
+
+    /**
+    * @notice Ban _user
+    * @param _user The user the will be banned
+    */
+    function ban(address _user) external auth(BAN_ROLE){
+      banned[_user] = true;
+      uint256 amount = token.balanceOf(_user);
+      if (amount > 0) {
+        token.destroyTokens(_user, amount);
+        erc20.transfer(_user, amount);
+      }
+      emit UserBanned(_user);
     }
 
     /**

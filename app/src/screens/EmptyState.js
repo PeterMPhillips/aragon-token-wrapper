@@ -1,25 +1,42 @@
 import React from 'react'
-import styled from 'styled-components'
-import { EmptyStateCard } from '@aragon/ui'
+import PropTypes from 'prop-types'
+import { Button, EmptyStateCard, GU } from '@aragon/ui'
 import emptyIcon from '../assets/empty-card-icon.svg'
 
-const EmptyState = ({ onActivate }) => (
-  <Main>
-    <EmptyStateCard
-      icon={<img src={emptyIcon} alt="" />}
-      title="Nothing here."
-      text="Wrap tokens to start using the app."
-      actionText="Wrap Tokens"
-      onActivate={onActivate}
-    />
-  </Main>
-)
+const EmptyState = React.memo(function NoVotes({ onWrapTokens }) {
+  return (
+    <div
+      css={`
+        height: calc(100vh - ${8 * GU}px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `}
+    >
+      <EmptyStateCard
+        text="No tokens have been wrapped!"
+        action={
+          <Button wide mode="strong" onClick={onWrapTokens}>
+            Wrap tokens
+          </Button>
+        }
+        illustration={
+          <img
+            css={`
+              margin: auto;
+              width: 200px;
+            `}
+            src={emptyIcon}
+            alt="No tokens wrapped"
+          />
+        }
+      />
+    </div>
+  )
+})
 
-const Main = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-grow: 1;
-`
+EmptyState.propTypes = {
+  onWrapTokens: PropTypes.func.isRequired,
+}
 
 export default EmptyState

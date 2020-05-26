@@ -1,37 +1,34 @@
 {
   "roles": [
     {
-      "name": "Wrap ERC-20 tokens",
-      "id": "WRAP_ROLE",
+      "name": "Ban user from wrapping tokens",
+      "id": "BAN_ROLE",
       "params": [
-        "Amount"
-      ]
-    },
-    {
-      "name": "Unwrap ERC-20 tokens",
-      "id": "UNWRAP_ROLE",
-      "params": [
-        "Amount"
+        "User"
       ]
     }
   ],
   "environments": {
     "default": {
-      "network": "development",
-      "appName": "token-wrapper.aragonpm.eth"
+      "appName": "token-wrapper.aragonpm.eth",
+      "network": "rpc"
     },
-    "staging": {
+    "rinkeby": {
       "registry": "0x98df287b6c145399aaa709692c8d308357bc085d",
-      "appName": "token-wrapper.open.aragonpm.eth",
-      "wsRPC": "wss://rinkeby.eth.aragon.network/ws",
+      "appName": "token-wrapper.aragonpm.eth",
       "network": "rinkeby"
     },
-    "production": {
-      "registry": "0x314159265dd8dbb310642f98f50c066173c1259b",
-      "appName": "token-wrapper.open.aragonpm.eth",
-      "wsRPC": "wss://mainnet.eth.aragon.network/ws",
+    "staging": {
+      "registry": "0xfe03625ea880a8cba336f9b5ad6e15b0a3b5a939",
+      "appName": "token-wrapper.aragonpm.eth",
+      "network": "rinkeby"
+    },
+    "mainnet": {
+      "registry": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",
+      "appName": "token-wrapper.aragonpm.eth",
       "network": "mainnet"
     }
   },
+  "appName": "token-wrapper.aragonpm.eth",
   "path": "contracts/TokenWrapper.sol"
 }
